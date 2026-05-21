@@ -1,0 +1,85 @@
+trigger:
+- main
+ 
+# 1. Dropdown parameter selection for Deploy vs Destroy
+parameters:
+- name: operationType
+  displayName: "Select Infrastructure Operation"
+  type: string
+  default: Deploy
+  values:
+  - Deploy
+  - Destroy
+ 
+pool:
+  vmImage: 'ubuntu-latest'
+ 
+variables:
+  azureServiceConnection: 'azure-sc-poc'
+  resourceGroupName: 'rg-bicep-poc'
+  baseName: 'bpoc26'
+  location: 'centralus'
+ 
+stages:
+- stage: IaCOperations
+  displayName: 'Execute Infrastructure Operations'
+  jobs:
+  - job: BicepJob
+    steps:
+    - task: AzureCLI@2
+      displayName: 'Process ${{ parameters.operationType }} Action'
+      inputs:
+        azureSubscription: $(azureServiceConnection)
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        inlineScript: |
+          if [ "${{ parameters.operationType }}" = "Deploy" ]; then
+            echo "=========================================="
+            echo "Starting infrastructure deployment..."
+            echo "=========================================="
+            az deployment group create \
+              --resource-group $(resourceGroupName) \
+              --template-file main.bicep \
+              --parameters baseName=$(baseName) location=$(location)
+          else
+            echo "=========================================="
+            echo "Starting infrastructure destruction..."
+            echo "=========================================="
+            
+            # Dynamic lookup to bypass unique hash naming conflicts
+            echo "Hunting for App Service names containing '$(baseName)'..."
+            WEB_APP_NAME=$(az resource list --resource-group $(resourceGroupName) --resource-type "Microsoft.Web/sites" --query "[?contains(name, '$(baseName)')].name" -o tsv)
+            
+            echo "Hunting for App Service Plan names containing '$(baseName)'..."
+            ASP_NAME=$(az resource list --resource-group $(resourceGroupName) --resource-type "Microsoft.Web/serverfarms" --query "[?contains(name, '$(baseName)')].name" -o tsv)
+            
+            echo "Hunting for Storage Account names containing '$(baseName)'..."
+            STORAGE_NAME=$(az storage account list --resource-group $(resourceGroupName) --query "[?contains(name, '$(baseName)')].name" -o tsv)
+ 
+            # Execution block for Web App deletion
+            if [ ! -z "$WEB_APP_NAME" ]; then
+              echo "Deleting Web App: $WEB_APP_NAME"
+              az resource delete --resource-group $(resourceGroupName) --name "$WEB_APP_NAME" --resource-type "Microsoft.Web/sites"
+            else
+              echo "No matching Web App found to delete."
+            fi
+ 
+            # Execution block for App Service Plan deletion
+            if [ ! -z "$ASP_NAME" ]; then
+              echo "Deleting App Service Plan: $ASP_NAME"
+              az resource delete --resource-group $(resourceGroupName) --name "$ASP_NAME" --resource-type "Microsoft.Web/serverfarms"
+            else
+              echo "No matching App Service Plan found to delete."
+            fi
+            
+            # Execution block for Storage Account deletion
+            if [ ! -z "$STORAGE_NAME" ]; then
+              echo "Deleting Storage Account: $STORAGE_NAME"
+              az storage account delete --name "$STORAGE_NAME" --resource-group $(resourceGroupName) --yes
+            else
+              echo "No matching Storage Account found to delete."
+            fi
+            
+            echo "Destruction phase completed."
+          fi
+ 
