@@ -1,16 +1,16 @@
 param location string
 param appServicePlanName string
 param webAppName string
-
+ 
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-01-01' = {
   name: appServicePlanName
   location: location
   sku: {
-    name: 'F1'
-    tier: 'Free'
+    name: 'B1'
+    tier: 'Basic'
   }
 }
-
+ 
 resource webApp 'Microsoft.Web/sites@2023-01-01' = {
   name: webAppName
   location: location
