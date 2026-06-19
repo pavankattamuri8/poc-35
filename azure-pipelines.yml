@@ -16,7 +16,7 @@ pool:
  
 variables:
   azureServiceConnection: 'azure-sc-poc'
-  resourceGroupName: 'rg-bicep-poc'
+  resourceGroupName: 'rg-poc35'
   baseName: 'bpoc26'
   location: 'centralus'
  
