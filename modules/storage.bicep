@@ -1,6 +1,6 @@
 param location string
 param storageAccountName string
-
+ 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   name: storageAccountName
   location: location
@@ -9,3 +9,4 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-01-01' = {
   }
   kind: 'StorageV2'
 }
+ 
